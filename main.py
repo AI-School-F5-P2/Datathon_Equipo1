@@ -1,6 +1,5 @@
 import sys
 import requests
-from bs4 import BeautifulSoup as bs
 import pandas as pd
 import matplotlib.pyplot as plt
 import matplotlib
@@ -23,6 +22,8 @@ frames = pd.DataFrame(json_covid) # Obtenemos el DataFrame
 frames.fillna(0, inplace=True) # Rellenar con 0 los valores faltantes (si los hay)
 frames['date'] = pd.to_datetime(frames['date'], format='%Y%m%d') # Convertir la columna de fecha al tipo de dato datetime
 descripcion = frames.describe() # Datos promedio
+columnas = frames.columns.tolist()
+print (columnas)
 
 ################################ INFORMES POR ESTADO Y GLOBAL USA #################################
 # Calcular el total de casos, muertes y recuperaciones para cada estado y para EE. UU. en general
