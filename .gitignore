@@ -5,3 +5,6 @@ requirements.txt
 /__pycache__
 /charts
 .ipynb_checkpoints
+Pipfile
+*.lock
+.gitignore
