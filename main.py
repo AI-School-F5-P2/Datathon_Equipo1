@@ -3,9 +3,10 @@ import requests
 import pandas as pd
 import matplotlib.pyplot as plt
 import matplotlib
-import seaborn as sns
+import con_sb as sns
 from bokeh.plotting import figure, show
 from bokeh.io import output_notebook
+import matplotlib.ticker as ticker
 
 url_csv = "https://api.covidtracking.com/v1/states/daily.csv"
 url_json = "https://api.covidtracking.com/v1/states/daily.json"
@@ -19,11 +20,20 @@ if awnser_code != 200:
 json_covid = hist_covid.json()
 frames = pd.DataFrame(json_covid) # Obtenemos el DataFrame
 #print(frames.info()) # Verificar la estructura del DataFrame
-frames.fillna(0, inplace=True) # Rellenar con 0 los valores faltantes (si los hay)
 frames['date'] = pd.to_datetime(frames['date'], format='%Y%m%d') # Convertir la columna de fecha al tipo de dato datetime
-descripcion = frames.describe() # Datos promedio
+estadisticas = frames.describe() # Datos promedio
 columnas = frames.columns.tolist()
-print (columnas)
+
+# Establecer el umbral de número máximo de valores nulos permitidos por columna
+umbral_nulos = 19500
+# Calcula la cantidad de valores nulos en cada columna
+cantidad_valores_nulos_por_columna = frames.isnull().sum()
+# Identificar las columnas que tienen más valores nulos que el umbral
+columnas_a_eliminar = cantidad_valores_nulos_por_columna[cantidad_valores_nulos_por_columna > umbral_nulos].index
+# Eliminar las columnas que exceden el umbral de valores nulos
+df_filtrado = frames.drop(columns=columnas_a_eliminar)
+frames.fillna(0, inplace=True) # Rellenar con 0 los valores faltantes (si los hay)
+
 
 ################################ INFORMES POR ESTADO Y GLOBAL USA #################################
 # Calcular el total de casos, muertes y recuperaciones para cada estado y para EE. UU. en general
@@ -35,13 +45,15 @@ totales_estado = frames.groupby('state').agg({
 }).reset_index()
 '''
 # Agrupar por 'state' y 'date' y sumar las columnas relevantes
-totales_estado = frames.groupby(['state', 'date']).sum().reset_index()
+#totales_estado = frames.groupby(['state', 'date']).sum().reset_index()
+totales_estado = frames.groupby(['state', 'date'])[['positive', 'death']].sum().reset_index()
 
 totales_usa = frames.groupby('date').agg({
     'positive': 'sum',
     'death': 'sum',
     'recovered': 'sum',
 }).reset_index()
+estados_de_eeuu = totales_estado['state'].unique().tolist() # Lista de estados
 
 print("Totales por estado")
 print (totales_estado)
@@ -49,7 +61,7 @@ print ()
 print ("Totales en USA")
 print(totales_usa)
 
-estados_de_eeuu = totales_estado['state'].unique().tolist() # Lista de estados
+
 
 '''
 matplotlib.use('agg') # Se prepara Matplotlib para volcar los gráficos a ficheros.
@@ -75,13 +87,18 @@ matplotlib.use('TkAgg') # Se pone matplolib para sacar los gráficos en pantalla
 
 ## Gráfica para el total de Estados Unidos con Matplolib solamente
 # Calcular los nuevos casos diarios y nuevas muertes diarias
-'''
+
 totales_usa['new_positive'] = totales_usa['positive'].diff()
 totales_usa['new_death'] = totales_usa['death'].diff()
 # Generar la gráfica.
 plt.figure(figsize=(12, 6))
-plt.plot(totales_usa['date'], totales_usa['new_positive'], label='Nuevos casos positivos', color='blue')
-plt.plot(totales_usa['date'], totales_usa['new_death'], label='Nuevas muertes', color='red')
+plt.plot(totales_usa['date'], totales_usa['positive'], label='Casos positivos', color='blue')
+plt.plot(totales_usa['date'], totales_usa['death'], label='Muertes', color='red')
+
+# Formatear el eje y con separadores de miles
+ax = plt.gca()  # Obtener el eje actual
+ax.yaxis.set_major_formatter(ticker.FuncFormatter(lambda x, pos: '{:,.0f}'.format(x)))
+
 plt.xlabel('Fecha')
 plt.ylabel('Cantidad Diaria')
 plt.title('Nuevos casos positivos y nuevas muertes diarias en Estados Unidos')
@@ -90,7 +107,8 @@ plt.xticks(rotation=45)
 plt.grid(True)
 plt.show()
 plt.close()
-'''
+
+
 # Convertir la columna 'date' a valores numéricos (días desde el inicio de los datos)
 frames['days_since_start'] = (frames['date'] - frames['date'].min()).dt.days
 
@@ -108,6 +126,7 @@ plt.tight_layout()
 plt.show()
 '''
 
+'''
 # Calcular la media de casos de COVID-19 para cada día
 mean_cases_per_day = frames.groupby('days_since_start')['positive'].mean().reset_index()
 # Calcular la media de defunciones de COVID-19 para cada día
@@ -116,15 +135,13 @@ mean_deaths_per_day = frames.groupby('days_since_start')['death'].mean().reset_i
 # Crear un gráfico de línea interactivo con Bokeh
 p = figure(width=800, height=400, title='Total de casos de COVID-19 en Estados Unidos',
            x_axis_label='Días desde el inicio de los datos', y_axis_label='Media de casos')
-
 p.line(x='days_since_start', y='positive', source=mean_cases_per_day, line_color='blue', line_width=2, legend_label='Casos registrados')
 p.line(x='days_since_start', y='death', source=mean_deaths_per_day, line_color='red', line_width=2, legend_label='Defunciones')
-
 # Agregar leyenda al gráfico
 p.legend.location = "top_left"
-
 # Habilitar la salida del gráfico en el notebook
 #output_notebook()
-
 # Mostrar el gráfico interactivo en el notebook
 show(p)
+'''
+
